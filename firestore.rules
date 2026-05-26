@@ -1,0 +1,83 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Adresses de prof autorisées
+    function isTeacher() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'jeanphilippe@pedagokit.be',
+          'jeanphilippe.bolle@cnddinant.be'
+        ];
+    }
+
+    // Le sondage doit être "live" pour que les apprenants y interagissent
+    function sondageEstLive(sondageId) {
+      return get(/databases/$(database)/documents/sondages/$(sondageId)).data.isLive == true;
+    }
+
+    // === SONDAGES ===
+    match /sondages/{sondageId} {
+      // Lecture du sondage :
+      // - propriétaire (prof) toujours
+      // - n'importe qui peut lire si le sondage est live (pour la page apprenant)
+      allow read: if (request.auth != null && resource.data.ownerUid == request.auth.uid)
+        || resource.data.isLive == true;
+
+      // Création / modification / suppression : prof autorisé uniquement
+      allow create: if isTeacher()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerEmail == request.auth.token.email;
+
+      allow update, delete: if isTeacher()
+        && resource.data.ownerUid == request.auth.uid;
+
+      // === Participants (sous-collection) ===
+      match /participants/{participantId} {
+        // Le prof voit tout
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/sondages/$(sondageId)).data.ownerUid == request.auth.uid;
+        // Les apprenants peuvent lire les participants si live (utile pour stats côté apprenant)
+        allow read: if sondageEstLive(sondageId);
+
+        // Création/màj possible par n'importe qui tant que le sondage est live
+        allow create, update: if sondageEstLive(sondageId)
+          && request.resource.data.prenom is string
+          && request.resource.data.prenom.size() <= 30;
+
+        // Suppression : prof uniquement
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/sondages/$(sondageId)).data.ownerUid == request.auth.uid;
+      }
+
+      // === Réponses (sous-collection) ===
+      match /reponses/{reponseId} {
+        // Prof : lecture totale ; apprenants : lecture si live
+        allow read: if (request.auth != null
+            && get(/databases/$(database)/documents/sondages/$(sondageId)).data.ownerUid == request.auth.uid)
+          || sondageEstLive(sondageId);
+
+        // Création / màj : tant que le sondage est live + champs cohérents
+        allow create, update: if sondageEstLive(sondageId)
+          && request.resource.data.participantPrenom is string
+          && request.resource.data.participantPrenom.size() <= 30
+          && request.resource.data.questionIndex is int;
+
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/sondages/$(sondageId)).data.ownerUid == request.auth.uid;
+      }
+    }
+
+    // === PINs (mapping pin -> sondageId) ===
+    match /pins/{pin} {
+      // Lecture publique (les apprenants doivent pouvoir résoudre un PIN)
+      allow read: if true;
+      // Création/suppression : prof uniquement, et le sondageId doit lui appartenir
+      allow create: if isTeacher()
+        && get(/databases/$(database)/documents/sondages/$(request.resource.data.sondageId)).data.ownerUid == request.auth.uid;
+      allow delete: if isTeacher()
+        && get(/databases/$(database)/documents/sondages/$(resource.data.sondageId)).data.ownerUid == request.auth.uid;
+    }
+  }
+}
