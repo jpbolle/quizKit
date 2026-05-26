@@ -27,7 +27,7 @@ Document de référence pour **Claude Code**, **Cursor** et tout contributeur.
 | Framework | **Next.js 16** (App Router, `src/app/`) |
 | UI | **React 19**, **Tailwind CSS 4** |
 | Backend | **Firebase** : Auth (Google), **Firestore** (temps réel) |
-| Hébergement | **Firebase Hosting** (export statique `output: "export"`) |
+| Hébergement | **Firebase App Hosting** (SSR sur Cloud Run, auto-deploy GitHub) |
 | Repo | https://github.com/jpbolle/quizKit |
 | Projet Firebase | `quizkit-7116e` |
 
@@ -41,12 +41,12 @@ Document de référence pour **Claude Code**, **Cursor** et tout contributeur.
 
 ```bash
 npm run dev          # http://localhost:3000
-npm run build        # génère /out (static export)
+npm run build        # build Next.js SSR (.next/)
 npm run typecheck
-npm run deploy:rules # firestore.rules + indexes
-npm run deploy:hosting
-npm run deploy       # build + deploy complet
+npm run deploy:rules # firestore.rules + indexes (Firebase CLI, manuel)
 ```
+
+> Le déploiement de l'application est automatique sur push `main` via Firebase App Hosting (config `apphosting.yaml`). Les anciens scripts `deploy:hosting` / `deploy` (basés sur l'export statique) ne sont plus utilisés.
 
 ---
 
@@ -67,8 +67,9 @@ quizKit/
 ├── firestore.rules
 ├── firestore.indexes.json
 ├── firebase.json
+├── apphosting.yaml       # config App Hosting (runConfig + env NEXT_PUBLIC_*)
 ├── .firebaserc           # default: quizkit-7116e
-└── .env.local.example    # variables NEXT_PUBLIC_FIREBASE_*
+└── .env.local.example    # variables NEXT_PUBLIC_FIREBASE_* (dev local)
 ```
 
 ---
@@ -100,10 +101,13 @@ quizKit/
   isLive: boolean
   pin: string | null
   currentQuestionIndex: number   // -1 = pas démarré
+  questionVisible: boolean       // false = écran d'attente côté apprenant
   showResults: boolean
   questions: Question[]          // embarqué dans le doc
 }
 ```
+
+> `questionVisible` est remis à `false` à chaque `naviguerQuestion` : le prof contrôle question par question quand l'apprenant la voit (bouton « 🚀 Lancer la question »).
 
 ### Sous-collections
 
@@ -152,14 +156,22 @@ Toute la synchro passe par **`onSnapshot`** Firestore :
 
 ---
 
-## 8. Groupes (`src/lib/groupes.ts`)
+## 8. Groupes (`src/lib/groupes.ts` + `GroupesPanel.tsx`)
 
-| Mode | Comportement |
+| Mode | Comportement auto |
 |------|----------------|
 | `identique` | Un groupe par valeur de réponse |
 | `different` | Répartition diversifiée (taille cible, round-robin + évite doublons de valeur) |
 
-UI : `src/components/GroupesPanel.tsx` sur la vue Direct prof.
+Sur la vue Direct prof, en plus de la répartition automatique :
+
+- **Drag & drop** : chaque prénom est `draggable`, on peut le déposer dans un autre groupe (souris/trackpad — HTML5 DnD natif, pas de tactile pour l'instant).
+- **➕ Groupe vide** / **🧹 Tout vider** / **🧹 Vider ce groupe** / **✕ Supprimer (si vide)**.
+- **🎯 Recette par groupe** (mode varié) : sur chaque groupe, le prof choisit un sous-ensemble de valeurs à mixer dans CE groupe (ex : groupe 1 = A+B, groupe 2 = A+C, groupe 3 = B+C).
+- **📥 Remplir auto (recettes)** : pioche dans les non-assignés en round-robin sur les valeurs de chaque recette, jusqu'à atteindre la taille cible. Les apprenants non couverts par une recette vont dans les groupes sans recette.
+- À l'arrivée d'un nouveau vote en cours de répartition, l'apprenant est ajouté au plus petit groupe compatible (priorité aux groupes dont la recette accepte sa valeur).
+
+`cleCanonique(q, valeur)` est exporté pour permettre le filtrage par valeur dans l'UI.
 
 ---
 
@@ -187,7 +199,9 @@ Règles dans `firestore.rules` :
 
 ---
 
-## 11. Configuration locale
+## 11. Configuration
+
+### En local
 
 Copier `.env.local.example` → `.env.local` :
 
@@ -200,7 +214,11 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-Ne **jamais** committer `.env.local`.
+`.env.local` est `.gitignore`d (jamais commit).
+
+### En prod (App Hosting)
+
+Les mêmes variables sont dans `apphosting.yaml` (au repo, OK car `NEXT_PUBLIC_*` part de toute façon dans le bundle client). Disponibilité **BUILD ET RUNTIME** obligatoire pour Next.js (les `NEXT_PUBLIC_*` sont inlinés au build).
 
 ---
 
@@ -216,13 +234,26 @@ Ne **jamais** committer `.env.local`.
 
 ---
 
-## 13. Checklist déploiement
+## 13. Déploiement
 
-1. `firebase login --reauth`
-2. Auth Google activée + Firestore créée
-3. `npm run deploy:rules`
-4. `npm run deploy:hosting` (build → dossier `out/`)
-5. Tester prof + apprenant sur l’URL Hosting
+### Application (auto)
+
+`git push origin main` → Firebase App Hosting détecte le commit via la connexion GitHub configurée dans la console, exécute Cloud Build (Next.js SSR) puis redéploie sur Cloud Run derrière la CDN.
+
+- Surveiller : Firebase Console → App Hosting → Rollouts.
+- Plan **Blaze** requis (App Hosting tourne sur Cloud Run / Cloud Build).
+- Domaines auth à jour dans Firebase → Authentication → Domaines autorisés (`*.hosted.app` ou custom).
+
+### Règles Firestore (manuel)
+
+App Hosting **ne déploie pas** les règles. À chaque modif de `firestore.rules` :
+
+```bash
+firebase login --reauth   # si token expiré
+npm run deploy:rules
+```
+
+(À terme : un GitHub Action séparé pour automatiser ce point.)
 
 ---
 
@@ -236,4 +267,4 @@ Ne **jamais** committer `.env.local`.
 
 ---
 
-*Dernière mise à jour : mai 2026 — alignée sur l’état du dépôt `main`.*
+*Dernière mise à jour : 2026-05-26 — migration App Hosting, refonte UI groupes (drag & drop + recettes), questionVisible, dupliquer/réinitialiser sondage.*
