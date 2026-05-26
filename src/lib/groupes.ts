@@ -40,7 +40,7 @@ export function formaterValeur(q: Question, valeur: Reponse["valeur"]): string {
  * Pour le nuage de mots, on prend l'ensemble trié des mots.
  * Pour l'évaluation, on prend la concaténation triée des notes.
  */
-function cleCanonique(q: Question, valeur: Reponse["valeur"]): string {
+export function cleCanonique(q: Question, valeur: Reponse["valeur"]): string {
   switch (q.type) {
     case "qcm": {
       if (Array.isArray(valeur)) {

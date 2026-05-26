@@ -13,6 +13,7 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
@@ -120,6 +121,64 @@ export async function majQuestions(id: string, questions: Question[]) {
 export async function supprimerSondage(id: string) {
   const db = getDb();
   await deleteDoc(doc(db, COL_SONDAGES, id));
+}
+
+/**
+ * Duplique un sondage existant : nouvelles questions (ids frais), état live
+ * réinitialisé, titre suffixé « (copie) ». Renvoie l'id du nouveau sondage.
+ */
+export async function dupliquerSondage(
+  source: Sondage,
+  ownerEmail: string,
+  ownerUid: string
+): Promise<string> {
+  const db = getDb();
+  const questions: Question[] = source.questions.map((q) => ({
+    ...q,
+    id: genId(),
+  }));
+  const ref = await addDoc(collection(db, COL_SONDAGES), {
+    title: `${source.title} (copie)`,
+    ownerEmail,
+    ownerUid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    isLive: false,
+    pin: null,
+    currentQuestionIndex: -1,
+    questionVisible: false,
+    showResults: false,
+    questions,
+  });
+  return ref.id;
+}
+
+/**
+ * Réinitialise un sondage : supprime participants et réponses, libère le PIN,
+ * remet l'état live à zéro. Les questions et le titre sont conservés.
+ */
+export async function reinitialiserSondage(id: string, pin: string | null) {
+  const db = getDb();
+  if (pin) {
+    await deleteDoc(doc(db, COL_PINS, pin)).catch(() => {});
+  }
+  // Sous-collections : on liste puis on supprime en batch (taille modeste, OK)
+  const [partsSnap, repsSnap] = await Promise.all([
+    getDocs(collection(db, COL_SONDAGES, id, "participants")),
+    getDocs(collection(db, COL_SONDAGES, id, "reponses")),
+  ]);
+  const batch = writeBatch(db);
+  partsSnap.forEach((d) => batch.delete(d.ref));
+  repsSnap.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  await updateDoc(doc(db, COL_SONDAGES, id), {
+    isLive: false,
+    pin: null,
+    currentQuestionIndex: -1,
+    questionVisible: false,
+    showResults: false,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // --- Lancement / arrêt ---

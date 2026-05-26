@@ -9,7 +9,9 @@ import { KahootLogo } from "@/components/KahootLogo";
 import { useAuth } from "@/lib/auth-context";
 import {
   creerSondage,
+  dupliquerSondage,
   listerSondagesProf,
+  reinitialiserSondage,
   supprimerSondage,
 } from "@/lib/sondages";
 import type { Sondage } from "@/lib/types";
@@ -49,6 +51,23 @@ export default function ProfHomePage() {
   async function handleSupprimer(id: string) {
     if (!confirm("Supprimer définitivement ce sondage ?")) return;
     await supprimerSondage(id);
+    if (user) listerSondagesProf(user.uid).then(setSondages);
+  }
+
+  async function handleDupliquer(s: Sondage) {
+    if (!user) return;
+    const id = await dupliquerSondage(s, user.email ?? "", user.uid);
+    router.push(`/prof/sondage?id=${id}`);
+  }
+
+  async function handleReinitialiser(s: Sondage) {
+    if (
+      !confirm(
+        `Réinitialiser « ${s.title} » ? Cela efface tous les participants et leurs réponses. Les questions sont conservées.`
+      )
+    )
+      return;
+    await reinitialiserSondage(s.id, s.pin);
     if (user) listerSondagesProf(user.uid).then(setSondages);
   }
 
@@ -133,20 +152,39 @@ export default function ProfHomePage() {
                     {s.questions.length} question
                     {s.questions.length > 1 ? "s" : ""}
                   </p>
-                  <div className="flex gap-2 mt-auto">
+                  <div className="flex flex-wrap gap-2 mt-auto">
                     <Link
                       href={`/prof/sondage?id=${s.id}`}
-                      className="flex-1"
+                      className="flex-1 min-w-[100px]"
                     >
                       <KahootButton color="blue" size="sm" className="w-full">
                         Ouvrir
                       </KahootButton>
                     </Link>
                     <KahootButton
+                      color="yellow"
+                      size="sm"
+                      onClick={() => handleDupliquer(s)}
+                      aria-label="Dupliquer"
+                      title="Dupliquer ce sondage"
+                    >
+                      📋
+                    </KahootButton>
+                    <KahootButton
+                      color="purple"
+                      size="sm"
+                      onClick={() => handleReinitialiser(s)}
+                      aria-label="Réinitialiser"
+                      title="Effacer participants et réponses"
+                    >
+                      🔄
+                    </KahootButton>
+                    <KahootButton
                       color="red"
                       size="sm"
                       onClick={() => handleSupprimer(s.id)}
                       aria-label="Supprimer"
+                      title="Supprimer définitivement"
                     >
                       🗑
                     </KahootButton>

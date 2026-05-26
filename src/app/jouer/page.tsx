@@ -112,10 +112,11 @@ export default function JoinPage() {
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={6}
               autoFocus
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) =>
+                setPin(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               placeholder="000000"
               className="text-center text-5xl md:text-6xl font-black tracking-widest px-4 py-6 rounded-2xl bg-white/15 border-2 border-white/20 placeholder-white/30 text-white focus:border-kahoot-yellow focus:outline-none"
             />
