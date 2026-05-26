@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dépendances
 /node_modules
 /.pnp
 .pnp.*
@@ -10,38 +8,46 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js
 /.next/
 /out/
-
-# production
 /build
+.turbo
+.swc
 
-# misc
+# Tests & couverture
+/coverage
+
+# Variables d'environnement (secrets Firebase)
+.env
+.env.*
+!.env.local.example
+
+# Firebase CLI & logs
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+*.log
+
+# Vercel (non utilisé mais évite les commits accidentels)
+.vercel
+
+# TypeScript (cache uniquement — next-env.d.ts reste versionné)
+*.tsbuildinfo
+
+# OS & éditeurs
 .DS_Store
+Thumbs.db
 *.pem
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
 
-# debug
+# npm / yarn debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-!.env.local.example
-
-# vercel
-.vercel
-
-# firebase
-.firebase
-firebase-debug.log
-firestore-debug.log
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts

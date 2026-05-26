@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# QuizKit
 
-## Getting Started
+Outil de **sondage en direct** pour vos cours — esthétique fun type **Kahoot**, pensé pour un prof et ses apprenants.
 
-First, run the development server:
+- **Prof** : crée des sondages, lance une session avec un **code PIN**, affiche les réponses en temps réel, répartit les apprenants en **groupes**.
+- **Apprenant** : entre le PIN + son prénom, répond depuis son téléphone ou ordinateur.
+
+## Démo locale
 
 ```bash
+npm install
+cp .env.local.example .env.local   # puis remplir les clés Firebase
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Parcours | URL |
+|----------|-----|
+| Accueil | `/` |
+| Espace prof | `/prof/login` |
+| Rejoindre un sondage | `/jouer` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+- [Next.js 16](https://nextjs.org) (App Router, export statique)
+- React 19 + Tailwind CSS 4
+- [Firebase](https://firebase.google.com) : Authentication (Google), Firestore, Hosting
 
-To learn more about Next.js, take a look at the following resources:
+**Projet Firebase :** `quizkit-7116e`  
+**Dépôt :** https://github.com/jpbolle/quizKit
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Types de questions
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Type | Description |
+|------|-------------|
+| QCM | 2 à 4 choix, couleurs + formes Kahoot |
+| Vrai / Faux | Deux boutons verts / rouges |
+| Nuage de mots | Mots-clés agrégés en direct |
+| Évaluation 1 → 5 | Plusieurs critères (1 = absent, 5 = présent) |
 
-## Deploy on Vercel
+## Configuration Firebase
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Créer / ouvrir le projet [quizkit-7116e](https://console.firebase.google.com/u/0/project/quizkit-7116e/overview).
+2. **Authentication** → activer **Google** (email d’assistance : `jeanphilippe@pedagokit.be`).
+3. **Firestore** → créer une base (région Europe recommandée).
+4. **Paramètres projet** → application Web → copier la config dans `.env.local`.
+5. **Authentication → Domaines autorisés** : `localhost`, `quizkit-7116e.web.app`, `quizkit-7116e.firebaseapp.com`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Comptes prof autorisés :
+
+- `jeanphilippe@pedagokit.be`
+- `jeanphilippe.bolle@cnddinant.be`
+
+## Déploiement
+
+```bash
+firebase login --reauth
+npm run deploy:rules      # règles Firestore
+npm run deploy:hosting    # build + Firebase Hosting
+```
+
+Le site statique est généré dans le dossier `out/`.
+
+## Documentation pour les agents IA
+
+| Fichier | Rôle |
+|---------|------|
+| [`docs/BIBLE.md`](docs/BIBLE.md) | Référence globale (architecture, données, conventions) |
+| [`docs/SESSION.md`](docs/SESSION.md) | Journal et objectifs de la session en cours |
+| [`CLAUDE.md`](CLAUDE.md) | Point d’entrée Claude Code |
+| [`AGENTS.md`](AGENTS.md) | Règles Next.js spécifiques au projet |
+
+## Scripts
+
+| Commande | Action |
+|----------|--------|
+| `npm run dev` | Serveur de développement |
+| `npm run build` | Build production (`out/`) |
+| `npm run typecheck` | Vérification TypeScript |
+| `npm run deploy:rules` | Déployer `firestore.rules` |
+| `npm run deploy:hosting` | Build + Hosting |
+
+## Licence
+
+Usage privé — Jean-Philippe Bolle / Pedagokit.
