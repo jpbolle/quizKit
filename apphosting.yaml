@@ -1,0 +1,40 @@
+# Firebase App Hosting — configuration build/runtime
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  # Petite instance suffisante pour ce trafic
+  minInstances: 0
+  maxInstances: 2
+  cpu: 1
+  memoryMiB: 512
+  concurrency: 80
+
+# Variables d'environnement exposées au build et au runtime.
+# Les valeurs réelles sont à renseigner dans la console Firebase
+# (App Hosting → Settings → Environment variables) ou via Secret Manager.
+# On les déclare ici uniquement pour qu'App Hosting sache les attendre.
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    availability:
+      - BUILD
+      - RUNTIME

@@ -11,6 +11,7 @@ import { LiveResultats } from "@/components/LiveResultats";
 import { GroupesPanel } from "@/components/GroupesPanel";
 import { useAuth } from "@/lib/auth-context";
 import {
+  afficherQuestion,
   arreterSondage,
   basculeResultats,
   ecouterParticipants,
@@ -374,21 +375,49 @@ function LiveSection({
             Suivante →
           </KahootButton>
         </div>
-        <KahootButton
-          color={sondage.showResults ? "yellow" : "blue"}
-          size="sm"
-          onClick={() => basculeResultats(sondage.id, !sondage.showResults)}
-          active={sondage.showResults}
-        >
-          {sondage.showResults ? "🙈 Cacher" : "👀 Afficher"} aux apprenants
-        </KahootButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <KahootButton
+            color={sondage.questionVisible ? "red" : "green"}
+            size="sm"
+            onClick={() =>
+              afficherQuestion(sondage.id, !sondage.questionVisible)
+            }
+            active={sondage.questionVisible}
+          >
+            {sondage.questionVisible
+              ? "🙈 Masquer la question"
+              : "🚀 Lancer la question"}
+          </KahootButton>
+          <KahootButton
+            color={sondage.showResults ? "yellow" : "blue"}
+            size="sm"
+            onClick={() => basculeResultats(sondage.id, !sondage.showResults)}
+            active={sondage.showResults}
+            disabled={!sondage.questionVisible}
+          >
+            {sondage.showResults ? "🙈 Cacher" : "👀 Afficher"} les résultats
+          </KahootButton>
+        </div>
       </KahootCard>
 
       {currentQuestion ? (
         <KahootCard>
-          <p className="text-white/60 uppercase text-xs font-bold tracking-widest">
-            Question en cours
-          </p>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-white/60 uppercase text-xs font-bold tracking-widest">
+              Question en cours
+            </p>
+            <span
+              className={
+                sondage.questionVisible
+                  ? "bg-kahoot-green/30 border border-kahoot-green text-kahoot-green px-3 py-1 rounded-full text-xs font-black uppercase tracking-wide"
+                  : "bg-white/10 border border-white/30 text-white/70 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wide"
+              }
+            >
+              {sondage.questionVisible
+                ? "👁 Visible des apprenants"
+                : "🙈 Masquée — clique sur « Lancer la question »"}
+            </span>
+          </div>
           <h2 className="text-2xl md:text-3xl font-black mt-1 mb-4">
             {currentQuestion.question || (
               <span className="italic text-white/40">

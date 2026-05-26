@@ -1,9 +1,92 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import type { InputHTMLAttributes } from "react";
 import type { Question } from "@/lib/types";
 import { KahootButton } from "./KahootButton";
 import { KahootShape } from "./Shapes";
 import { KAHOOT_COLOR_CLASSES, KAHOOT_COLORS } from "@/lib/utils";
+
+type DebouncedTextInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange"
+> & {
+  value: string;
+  onCommit: (v: string) => void;
+  delay?: number;
+};
+
+/**
+ * Input texte découplé d'une source distante (Firestore) :
+ * - garde un état local pendant la frappe (pas de round-trip qui casse les dead keys ^ ¨ `)
+ * - re-synchronise depuis la prop quand l'utilisateur n'est pas en train d'éditer
+ * - commit débouncé + commit immédiat sur blur
+ */
+function DebouncedTextInput({
+  value,
+  onCommit,
+  delay = 400,
+  onBlur,
+  ...rest
+}: DebouncedTextInputProps) {
+  const [local, setLocal] = useState(value);
+  const composingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!dirtyRef.current && !composingRef.current) {
+      setLocal(value);
+    }
+  }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  function schedule(v: string) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      onCommit(v);
+    }, delay);
+  }
+
+  return (
+    <input
+      {...rest}
+      value={local}
+      onChange={(e) => {
+        const v = e.target.value;
+        dirtyRef.current = true;
+        setLocal(v);
+        if (!composingRef.current) schedule(v);
+      }}
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={(e) => {
+        composingRef.current = false;
+        const v = (e.target as HTMLInputElement).value;
+        setLocal(v);
+        schedule(v);
+      }}
+      onBlur={(e) => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        if (dirtyRef.current) {
+          dirtyRef.current = false;
+          onCommit(e.currentTarget.value);
+        }
+        onBlur?.(e);
+      }}
+    />
+  );
+}
 
 interface Props {
   question: Question;
@@ -75,11 +158,11 @@ export function QuestionEditor({
         </div>
       </div>
 
-      <input
+      <DebouncedTextInput
         type="text"
         placeholder="Énoncé de la question…"
         value={question.question}
-        onChange={(e) => onChange({ ...question, question: e.target.value })}
+        onCommit={(v) => onChange({ ...question, question: v })}
         disabled={disabled}
         className="px-4 py-3 rounded-xl bg-white/15 border-2 border-white/20 placeholder-white/50 text-white text-lg font-semibold focus:border-kahoot-yellow focus:outline-none"
       />
@@ -137,11 +220,11 @@ function QCMEditor({
               <span className="text-white">
                 <KahootShape index={i} />
               </span>
-              <input
+              <DebouncedTextInput
                 type="text"
                 placeholder={`Choix ${i + 1}`}
                 value={opt}
-                onChange={(e) => setOption(i, e.target.value)}
+                onCommit={(v) => setOption(i, v)}
                 disabled={disabled}
                 className="flex-1 px-3 py-2 rounded-lg bg-black/20 placeholder-white/50 text-white font-bold focus:outline-none focus:bg-black/30"
               />
@@ -253,10 +336,10 @@ function EvaluationEditor({
       {q.items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="text-kahoot-yellow font-bold w-6">{i + 1}.</span>
-          <input
+          <DebouncedTextInput
             type="text"
             value={item}
-            onChange={(e) => setItem(i, e.target.value)}
+            onCommit={(v) => setItem(i, v)}
             placeholder={`Critère ${i + 1}`}
             disabled={disabled}
             className="flex-1 px-3 py-2 rounded-xl bg-white/15 border-2 border-white/20 text-white font-semibold focus:outline-none focus:border-kahoot-yellow"

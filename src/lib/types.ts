@@ -44,6 +44,8 @@ export interface Sondage {
   pin: string | null;
   /** Index de la question affichée (-1 = pas démarré, length = terminé) */
   currentQuestionIndex: number;
+  /** true = la question courante est affichée aux apprenants (le prof l'a lancée) */
+  questionVisible: boolean;
   /** true = on a révélé les résultats de la question courante */
   showResults: boolean;
   questions: Question[];

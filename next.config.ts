@@ -2,12 +2,8 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Static export → déployable sur Firebase Hosting sans Cloud Functions
-  output: "export",
-  images: {
-    unoptimized: true,
-  },
-  // Active des barres obliques finales pour les URLs (utile pour le hosting statique)
+  // App Hosting : Next.js en mode serveur (SSR) sur Cloud Run.
+  // Pas de output:"export" → on bénéficie du rendu serveur natif.
   trailingSlash: true,
   // Silence le warning « multiple lockfiles »
   turbopack: {

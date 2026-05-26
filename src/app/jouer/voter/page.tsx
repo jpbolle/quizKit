@@ -76,12 +76,31 @@ function VoterInner() {
 
   useEffect(() => {
     if (!sondageId) return;
-    const unsubS = ecouterSondage(sondageId, setSondage);
-    const unsubR = ecouterReponses(sondageId, setReponses);
-    return () => {
+    let stopped = false;
+    let unsubS = () => {};
+    let unsubR = () => {};
+
+    // Dès que le sondage n'est plus live (ou doc supprimé), on désabonne
+    // immédiatement pour éviter des "permission-denied" sur les listeners
+    // (les rules Firestore exigent isLive == true côté apprenant).
+    function teardown() {
+      if (stopped) return;
+      stopped = true;
       unsubS();
       unsubR();
-    };
+    }
+
+    unsubS = ecouterSondage(sondageId, (s) => {
+      if (stopped) return;
+      setSondage(s);
+      if (!s || !s.isLive) teardown();
+    });
+    unsubR = ecouterReponses(sondageId, (r) => {
+      if (stopped) return;
+      setReponses(r);
+    });
+
+    return teardown;
   }, [sondageId]);
 
   // Si le prof arrête le sondage, on retourne à l'accueil
@@ -94,6 +113,8 @@ function VoterInner() {
 
   const currentQuestion = useMemo(() => {
     if (!sondage) return null;
+    // Tant que le prof n'a pas explicitement lancé la question, l'apprenant attend
+    if (!sondage.questionVisible) return null;
     const idx = sondage.currentQuestionIndex;
     if (idx < 0 || idx >= sondage.questions.length) return null;
     return sondage.questions[idx];

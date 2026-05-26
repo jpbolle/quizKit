@@ -41,6 +41,7 @@ function docToSondage(d: QueryDocumentSnapshot): Sondage {
     isLive: Boolean(data.isLive),
     pin: (data.pin as string) ?? null,
     currentQuestionIndex: (data.currentQuestionIndex as number) ?? -1,
+    questionVisible: Boolean(data.questionVisible),
     showResults: Boolean(data.showResults),
     questions: (data.questions as Question[]) ?? [],
   };
@@ -61,6 +62,7 @@ export async function creerSondage(
     isLive: false,
     pin: null,
     currentQuestionIndex: -1,
+    questionVisible: false,
     showResults: false,
     questions: [],
   });
@@ -139,6 +141,7 @@ export async function lancerSondage(id: string): Promise<string> {
     isLive: true,
     pin,
     currentQuestionIndex: 0,
+    questionVisible: false,
     showResults: false,
     updatedAt: serverTimestamp(),
   });
@@ -154,6 +157,7 @@ export async function arreterSondage(id: string, pin: string | null) {
     isLive: false,
     pin: null,
     currentQuestionIndex: -1,
+    questionVisible: false,
     showResults: false,
     updatedAt: serverTimestamp(),
   });
@@ -163,9 +167,21 @@ export async function naviguerQuestion(id: string, index: number) {
   const db = getDb();
   await updateDoc(doc(db, COL_SONDAGES, id), {
     currentQuestionIndex: index,
+    questionVisible: false,
     showResults: false,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function afficherQuestion(id: string, visible: boolean) {
+  const db = getDb();
+  const patch: Record<string, unknown> = {
+    questionVisible: visible,
+    updatedAt: serverTimestamp(),
+  };
+  // Si on cache la question, on cache aussi les résultats
+  if (!visible) patch.showResults = false;
+  await updateDoc(doc(db, COL_SONDAGES, id), patch);
 }
 
 export async function basculeResultats(id: string, show: boolean) {
